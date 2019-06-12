@@ -1,20 +1,18 @@
 FROM ubuntu:18.04 AS rdkit-build-env
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update \
  && apt-get install -yq --no-install-recommends \
-    ca-certificates \
-    build-essential \
+    curl \
     cmake \
     wget \
-    libboost-dev \
-    libboost-system-dev \
-    libboost-thread-dev \
-    libboost-serialization-dev \
-    libboost-iostreams-dev \
-    libboost-python-dev \
-    libboost-regex-dev \
+    g++ \
+    libboost-all-dev \
     libcairo2-dev \
     libeigen3-dev \
+    python3 \
+    libpython3-all-dev \
     python3-dev \
     python3-numpy \
  && apt-get clean \
@@ -26,23 +24,24 @@ RUN wget --quiet https://github.com/rdkit/rdkit/archive/${RDKIT_VERSION}.tar.gz 
  && mv rdkit-${RDKIT_VERSION} rdkit \
  && rm ${RDKIT_VERSION}.tar.gz
 
-RUN mkdir /rdkit/build
-WORKDIR /rdkit/build
+ENV RDBASE=/rdkit
+WORKDIR $RDBASE
+ENV PYTHONPATH=$RDBASE
+ENV LD_LIBRARY_PATH=$RDBASE/lib
 
-# RDK_OPTIMIZE_NATIVE=ON assumes container will be run on the same architecture on which it is built
+WORKDIR $RDBASE
+RUN mkdir build
+WORKDIR build
+
 RUN cmake -Wno-dev \
-  -D RDK_INSTALL_INTREE=OFF \
-  -D RDK_INSTALL_STATIC_LIBS=OFF \
   -D RDK_BUILD_INCHI_SUPPORT=ON \
-  -D RDK_BUILD_AVALON_SUPPORT=OFF \
+  -D RDK_BUILD_AVALON_SUPPORT=ON \
   -D RDK_BUILD_PYTHON_WRAPPERS=ON \
   -D RDK_BUILD_CAIRO_SUPPORT=ON \
-  -D RDK_USE_FLEXBISON=OFF \
   -D RDK_BUILD_THREADSAFE_SSS=ON \
-  -D RDK_OPTIMIZE_NATIVE=ON \
   -D PYTHON_EXECUTABLE=/usr/bin/python3 \
-  -D PYTHON_INCLUDE_DIR=/usr/include/python3.5 \
-  -D PYTHON_NUMPY_INCLUDE_PATH=/usr/lib/python3/dist-packages/numpy/core/include \
+  -D PYTHON_INCLUDE_DIR=/usr/include/python3.6 \
+  -D PYTHON_NUMPY_INCLUDE_PATH=/usr/lib/python3.6/dist-packages/numpy/core/include \
   -D CMAKE_INSTALL_PREFIX=/usr \
   -D CMAKE_BUILD_TYPE=Release \
   ..
