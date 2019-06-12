@@ -10,6 +10,7 @@ RUN apt-get update \
     libboost-system-dev \
     libboost-thread-dev \
     libboost-serialization-dev \
+    libboost-iostreams-dev \
     libboost-python-dev \
     libboost-regex-dev \
     libcairo2-dev \
@@ -33,7 +34,7 @@ RUN cmake -Wno-dev \
   -D RDK_INSTALL_INTREE=OFF \
   -D RDK_INSTALL_STATIC_LIBS=OFF \
   -D RDK_BUILD_INCHI_SUPPORT=ON \
-  -D RDK_BUILD_AVALON_SUPPORT=ON \
+  -D RDK_BUILD_AVALON_SUPPORT=OFF \
   -D RDK_BUILD_PYTHON_WRAPPERS=ON \
   -D RDK_BUILD_CAIRO_SUPPORT=ON \
   -D RDK_USE_FLEXBISON=OFF \
