@@ -1,4 +1,4 @@
-FROM ubuntu:stretch AS rdkit-build-env
+FROM ubuntu:18.04 AS rdkit-build-env
 
 RUN apt-get update \
  && apt-get install -yq --no-install-recommends \
