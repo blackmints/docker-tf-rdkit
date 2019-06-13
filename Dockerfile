@@ -49,7 +49,7 @@ RUN cmake -Wno-dev \
 RUN make -j $(nproc) \
  && make install
 
-FROM tensorflow:latest-gpu-py3 AS rdkit-env
+FROM tensorflow/tensorflow:latest-gpu-py3 AS rdkit-env
 
 # Install runtime dependencies
 RUN apt-get update \
