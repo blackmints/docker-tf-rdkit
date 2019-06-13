@@ -12,6 +12,7 @@ RUN apt-get update \
     libboost-serialization-dev \
     libboost-python-dev \
     libboost-regex-dev \
+    libboost-iostreams-dev \
     libcairo2-dev \
     libeigen3-dev \
     python3-dev \
@@ -19,7 +20,7 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-ARG RDKIT_VERSION=Release_2018_09_1
+ARG RDKIT_VERSION=Release_2019_03_2
 RUN wget --quiet https://github.com/rdkit/rdkit/archive/${RDKIT_VERSION}.tar.gz \
  && tar -xzf ${RDKIT_VERSION}.tar.gz \
  && mv rdkit-${RDKIT_VERSION} rdkit \
@@ -49,9 +50,11 @@ RUN cmake -Wno-dev \
 RUN make -j $(nproc) \
  && make install
 
-FROM tensorflow/tensorflow:latest-gpu-py3 AS rdkit-env
+FROM tensorflow:latest-gpu-py3 AS rdkit-env
 
 # Install runtime dependencies
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test
+RUN add-apt-repository ppa:bkryza/onedata-deps-gcc7
 RUN apt-get update \
  && apt-get install -yq --no-install-recommends \
     libboost-atomic1.62.0 \
@@ -62,10 +65,13 @@ RUN apt-get update \
     libboost-serialization1.62.0 \
     libboost-system1.62.0 \
     libboost-thread1.62.0 \
+    libboost-iostreams1.62.0 \
     libcairo2-dev \
     python3-dev \
     python3-numpy \
     python3-cairo \
+    gcc-4.9 \
+ && apt-get upgrade -yq libstdc++6 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
