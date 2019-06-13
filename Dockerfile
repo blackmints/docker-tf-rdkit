@@ -4,7 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
  && apt-get install -yq --no-install-recommends \
-    curl \
+    ca-certificates \
+    build-essential \
     cmake \
     wget \
     g++ \
@@ -24,12 +25,6 @@ RUN wget --quiet https://github.com/rdkit/rdkit/archive/${RDKIT_VERSION}.tar.gz 
  && mv rdkit-${RDKIT_VERSION} rdkit \
  && rm ${RDKIT_VERSION}.tar.gz
 
-ENV RDBASE=/rdkit
-WORKDIR $RDBASE
-ENV PYTHONPATH=$RDBASE
-ENV LD_LIBRARY_PATH=$RDBASE/lib
-
-WORKDIR $RDBASE
 RUN mkdir build
 WORKDIR build
 
