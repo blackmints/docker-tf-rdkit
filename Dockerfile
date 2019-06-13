@@ -49,7 +49,7 @@ RUN cmake -Wno-dev \
 RUN make -j $(nproc) \
  && make install
 
-FROM debian:stretch AS rdkit-env
+FROM tensorflow:latest-gpu-py3 AS rdkit-env
 
 # Install runtime dependencies
 RUN apt-get update \
