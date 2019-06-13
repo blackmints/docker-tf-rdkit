@@ -1,72 +1,62 @@
 FROM ubuntu:18.04 AS rdkit-build-env
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 RUN apt-get update \
- && apt-get install -yq --no-install-recommends \
-    ca-certificates \
-    build-essential \
-    cmake \
-    wget \
-    g++ \
-    libboost-all-dev \
-    libcairo2-dev \
-    libeigen3-dev \
-    python3 \
-    libpython3-all-dev \
-    python3-dev \
-    python3-numpy \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends \
+        wget \
+        ca-certificates \
+        cmake gfortran \
+        libcairo2-dev libeigen3-dev libssl-dev libffi-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-ARG RDKIT_VERSION=Release_2019_03_2
-RUN wget --quiet https://github.com/rdkit/rdkit/archive/${RDKIT_VERSION}.tar.gz \
- && tar -xzf ${RDKIT_VERSION}.tar.gz \
- && mv rdkit-${RDKIT_VERSION} rdkit \
- && rm ${RDKIT_VERSION}.tar.gz
+ENV MKL_ROOT_DIR /opt/intel/mkl
+ENV LD_LIBRARY_PATH $MKL_ROOT_DIR/lib/intel64
 
-RUN mkdir build
-WORKDIR build
+ARG N_PROC=2
+ARG PYTHON_VERSION=3.6
+RUN mkdir -p /src/python \
+    && cd /src/python \
+    && wget -qO- https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz | tar xzf - --strip-components=1 \
+    && ./configure \
+    && make -j${N_PROC} \
+    && make install \
+    && cd .. && rm -rf /src/python
 
-RUN cmake -Wno-dev \
-  -D RDK_BUILD_INCHI_SUPPORT=ON \
-  -D RDK_BUILD_AVALON_SUPPORT=ON \
-  -D RDK_BUILD_PYTHON_WRAPPERS=ON \
-  -D RDK_BUILD_CAIRO_SUPPORT=ON \
-  -D RDK_BUILD_THREADSAFE_SSS=ON \
-  -D PYTHON_EXECUTABLE=/usr/bin/python3 \
-  -D PYTHON_INCLUDE_DIR=/usr/include/python3.6 \
-  -D PYTHON_NUMPY_INCLUDE_PATH=/usr/lib/python3.6/dist-packages/numpy/core/include \
-  -D CMAKE_INSTALL_PREFIX=/usr \
-  -D CMAKE_BUILD_TYPE=Release \
-  ..
+ENV PATH /usr/local/bin:$PATH
+ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+ENV INCLUDE_PATH /usr/local/include:$INCLUDE_PATH
 
-RUN make -j $(nproc) \
- && make install
+ARG BOOST_VERSION=1.69.0
+RUN mkdir -p /src/boost \
+    && cd /src/boost \
+    && wget -qO- https://dl.bintray.com/boostorg/release/${BOOST_VERSION}/source/boost_$(echo $BOOST_VERSION | tr '.' '_').tar.gz \
+        | tar xzf - --strip-components=1 \
+    && ./bootstrap.sh \
+    && python_version=$(echo ${PYTHON_VERSION} | grep -oE '[23]\.[0-9]+') \
+    && echo "using python : ${python_version} : /usr/local : /usr/local/include/python${python_version}m ;" > user-config.jam \
+    && ./b2 install -j${N_PROC} --with-system --with-iostreams --with-python --with-serialization --user-config=user-config.jam \
+    && cd / && rm -rf /src/boost
 
-FROM tensorflow:latest-gpu-py3 AS rdkit-env
+ADD numpy-site.cfg /root/.numpy-site.cfg
 
-# Install runtime dependencies
-RUN apt-get update \
- && apt-get install -yq --no-install-recommends \
-    libboost-atomic1.62.0 \
-    libboost-chrono1.62.0 \
-    libboost-date-time1.62.0 \
-    libboost-python1.62.0 \
-    libboost-regex1.62.0 \
-    libboost-serialization1.62.0 \
-    libboost-system1.62.0 \
-    libboost-thread1.62.0 \
-    libcairo2-dev \
-    python3-dev \
-    python3-numpy \
-    python3-cairo \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --no-binary :all: numpy scipy
+RUN pip3 install pillow six pandas
 
-# Copy rdkit installation from rdkit-build-env
-COPY --from=rdkit-build-env /usr/lib/libRDKit* /usr/lib/
-COPY --from=rdkit-build-env /usr/lib/cmake/rdkit/* /usr/lib/cmake/rdkit/
-COPY --from=rdkit-build-env /usr/share/RDKit /usr/share/RDKit
-COPY --from=rdkit-build-env /usr/include/rdkit /usr/include/rdkit
-COPY --from=rdkit-build-env /usr/lib/python3/dist-packages/rdkit /usr/lib/python3/dist-packages/rdkit
+ENV RDBASE /opt/rdkit
+ENV LD_LIBRARY_PATH $RDBASE/lib:$LD_LIBRARY_PATH
+ENV PYTHONPATH $RDBASE:$PYTHONPATH
+
+ARG RDKIT_VERSION=2019_03_2
+RUN mkdir -p /opt/rdkit \
+    && cd /opt/rdkit \
+    && wget -qO- https://github.com/rdkit/rdkit/archive/Release_${RDKIT_VERSION}.tar.gz \
+        | tar xzf - --strip-components=1 \
+    && mkdir build && cd build \
+    && cmake \
+        -DPYTHON_EXECUTABLE=$(which python3) \
+        -DRDK_BUILD_AVALON_SUPPORT=ON \
+        -DRDK_BUILD_CAIRO_SUPPORT=ON \
+        -DRDK_BUILD_INCHI_SUPPORT=ON \
+        .. \
+    && make -j${N_PROC} \
+    && make install
